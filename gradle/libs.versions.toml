@@ -1,10 +1,10 @@
 [versions]
 range-fml = "[4,)"
-range-game = "[26.1,)"
-range-neoforge = "[26.1,)"
-range-mafglib = "[0.4,)"
+range-game = "[26.2,26.3)"
+range-neoforge = "[26.2,26.3)"
+range-mafglib = "[0.5.6,)"
 
-mod-link = "https://github.com/CagayakeGirls/minihud-neoforge"
+mod-link = "https://github.com/Nikit04ka/minihud-neoforge"
 
 version-env = "client"
 version-type = "beta"
