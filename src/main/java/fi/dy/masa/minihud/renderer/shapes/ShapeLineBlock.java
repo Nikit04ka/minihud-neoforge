@@ -15,11 +15,15 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 import fi.dy.masa.malilib.render.MaLiLibPipelines;
-import fi.dy.masa.malilib.util.*;
+import fi.dy.masa.malilib.util.BlockSnap;
+import fi.dy.masa.malilib.util.EntityUtils;
+import fi.dy.masa.malilib.util.InfoUtils;
+import fi.dy.masa.malilib.util.StringUtils;
 import fi.dy.masa.malilib.util.data.json.JsonUtils;
+import fi.dy.masa.malilib.util.position.IntBoundingBox;
+import fi.dy.masa.malilib.util.position.LayerRange;
 import fi.dy.masa.malilib.util.position.PositionUtils;
 import fi.dy.masa.malilib.util.position.Vec3d;
 import fi.dy.masa.minihud.MiniHUD;
@@ -36,6 +40,7 @@ public class ShapeLineBlock extends ShapeBlocky
     protected Vec3d effectiveStartPos = Vec3d.ZERO;
     protected Vec3d effectiveEndPos = Vec3d.ZERO;
 	protected Vec3d initialSize = new Vec3d(16.0D, 16.0D, 16.0D);
+    protected BlockPos midpoint = BlockPos.ZERO;
 
     private boolean hasData;
 
@@ -106,8 +111,25 @@ public class ShapeLineBlock extends ShapeBlocky
         this.updateEffectivePositions();
     }
 
+    protected void calcMidpoint()
+    {
+        Vec3d p1 = this.startPos;
+        Vec3d p2 = this.endPos;
+
+        double mx = (p1.x + p2.x) / 2.0;
+        double my = (p1.y + p2.y) / 2.0;
+        double mz = (p1.z + p2.z) / 2.0;
+
+        this.midpoint = BlockPos.containing(mx, my, mz);
+    }
+
+    protected BlockPos getMidpoint()
+    {
+        return this.midpoint;
+    }
+
     @Override
-    public void update(Vec3 cameraPos, Entity entity, Minecraft mc, ProfilerFiller profiler)
+    public void update(Vec3d cameraPos, Entity entity, Minecraft mc, ProfilerFiller profiler)
     {
         this.hasData = true;
         this.render(cameraPos, mc, profiler);
@@ -121,7 +143,7 @@ public class ShapeLineBlock extends ShapeBlocky
     }
 
     @Override
-    public void render(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    public void render(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         this.allocateBuffers(this.renderLines);
         this.renderQuads(cameraPos, mc, profiler);
@@ -132,7 +154,7 @@ public class ShapeLineBlock extends ShapeBlocky
         }
     }
 
-    private void renderQuads(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    private void renderQuads(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         if (mc.level == null || mc.player == null)
         {
@@ -141,10 +163,8 @@ public class ShapeLineBlock extends ShapeBlocky
 
         profiler.push("line_block_quads");
         RenderObjectVbo ctx = this.renderObjects.getFirst();
-        BufferBuilder builder = ctx.start(() -> "minihud:line_block/quads", this.renderThroughShape ? MaLiLibPipelines.MINIHUD_SHAPE_NO_DEPTH_OFFSET : MaLiLibPipelines.MINIHUD_SHAPE_OFFSET_NO_CULL);
-//        MatrixStack matrices = new MatrixStack();
+        BufferBuilder builder = ctx.start(() -> "minihud:line_block/quads", this.renderThroughShape ? MaLiLibPipelines.MINIHUD_SHAPE_NO_DEPTH_OFFSET : MaLiLibPipelines.MINIHUD_SHAPE_OFFSET_NO_CULL, 0);
 
-//        matrices.push();
         this.renderLineShapeQuads(cameraPos, builder);
 
         try
@@ -157,7 +177,7 @@ public class ShapeLineBlock extends ShapeBlocky
 
                 if (this.shouldResort)
                 {
-                    ctx.startResorting(meshData, ctx.createVertexSorter(cameraPos));
+                    ctx.startResorting(meshData, ctx.createVertexSorter(cameraPos.toVanilla()));
                 }
 
                 meshData.close();
@@ -168,11 +188,10 @@ public class ShapeLineBlock extends ShapeBlocky
             MiniHUD.LOGGER.error("ShapeLineBlock#renderQuads(): Exception; {}", err.getMessage());
         }
 
-//        matrices.pop();
         profiler.pop();
     }
 
-    private void renderOutlines(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    private void renderOutlines(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         if (mc.level == null || mc.player == null || !this.renderLines)
         {
@@ -181,7 +200,7 @@ public class ShapeLineBlock extends ShapeBlocky
 
         profiler.push("line_block_outlines");
         RenderObjectVbo ctx = this.renderObjects.get(1);
-        BufferBuilder builder = ctx.start(() -> "minihud:line_block/outlines", MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_LEQUAL_DEPTH);
+        BufferBuilder builder = ctx.start(() -> "minihud:line_block/outlines", MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_LEQUAL_DEPTH, 0);
 
         this.renderLineShapeLines(cameraPos, this.glLineWidth, builder);
 
@@ -277,10 +296,11 @@ public class ShapeLineBlock extends ShapeBlocky
         this.effectiveStartPos = this.getBlockSnappedPosition(this.startPos);
         this.effectiveEndPos = this.getBlockSnappedPosition(this.endPos);
         this.updateRenderPerimeter();
+        this.calcMidpoint();
         this.setNeedsUpdate();
     }
 
-    protected void renderLineShapeQuads(Vec3 cameraPos, BufferBuilder builder)
+    protected void renderLineShapeQuads(Vec3d cameraPos, BufferBuilder builder)
     {
         final double maxDist = 30000;
 
@@ -292,6 +312,11 @@ public class ShapeLineBlock extends ShapeBlocky
         LongOpenHashSet positions = new LongOpenHashSet();
         RayTracer tracer = new RayTracer(this.effectiveStartPos.toVanilla(), this.effectiveEndPos.toVanilla());
         double expand = 0;
+
+        if (this.shouldRenderCenterBlock())
+        {
+            fi.dy.masa.malilib.render.RenderUtils.drawBlockBoundingBoxSidesBatchedQuads(this.getMidpoint(), cameraPos.toVanilla(), this.color, 0.001, builder);
+        }
 
         tracer.iterateAllPositions(this.getLinePositionCollector(positions));
 
@@ -306,7 +331,7 @@ public class ShapeLineBlock extends ShapeBlocky
         }
     }
 
-    protected void renderLineShapeLines(Vec3 cameraPos,
+    protected void renderLineShapeLines(Vec3d cameraPos,
 										float lineWidth,
                                         BufferBuilder builder)
     {
@@ -320,6 +345,11 @@ public class ShapeLineBlock extends ShapeBlocky
         LongOpenHashSet positions = new LongOpenHashSet();
         RayTracer tracer = new RayTracer(this.effectiveStartPos.toVanilla(), this.effectiveEndPos.toVanilla());
         double expand = 0;
+
+        if (this.shouldRenderCenterBlock())
+        {
+            fi.dy.masa.malilib.render.RenderUtils.drawBlockBoundingBoxOutlinesBatchedLines(this.getMidpoint(), cameraPos.toVanilla(), this.colorLines, 0.001, lineWidth, builder);
+        }
 
         tracer.iterateAllPositions(this.getLinePositionCollector(positions));
 
@@ -338,14 +368,13 @@ public class ShapeLineBlock extends ShapeBlocky
     {
         IntBoundingBox box = this.layerRange.getExpandedBox(this.mc.level, 0);
 
-        LongConsumer positionCollector = (pos) -> {
-            if (box.containsPos(pos))
-            {
-                positionsOut.add(pos);
-            }
-        };
-
-        return positionCollector;
+	    return (pos) ->
+	    {
+	        if (box.contains(pos))
+	        {
+	            positionsOut.add(pos);
+	        }
+	    };
     }
 
     public Long2ObjectOpenHashMap<SideQuad> buildPositionsToStrips(LongOpenHashSet positions, LayerRange layerRange)

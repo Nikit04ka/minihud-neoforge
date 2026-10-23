@@ -18,6 +18,7 @@ import fi.dy.masa.malilib.gui.widgets.WidgetColorIndicator;
 import fi.dy.masa.malilib.gui.wrappers.TextFieldType;
 import fi.dy.masa.malilib.interfaces.ICoordinateValueModifier;
 import fi.dy.masa.malilib.util.*;
+import fi.dy.masa.malilib.util.position.LayerRange;
 import fi.dy.masa.malilib.util.position.PositionUtils;
 import fi.dy.masa.malilib.util.position.PositionUtils.CoordinateType;
 import fi.dy.masa.malilib.util.position.Vec3d;
@@ -58,6 +59,9 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
 
         ButtonOnOff renderLinesButton = new ButtonOnOff(this.getScreenWidth() - 104, this.getScreenHeight() - 24, -1, false, "minihud.gui.button.shape_renderer.toggle_render_lines", this.shape.shouldRenderLines());
         this.addButton(renderLinesButton, (b, mb) -> this.toggleRenderLines(shape, renderLinesButton));
+
+        ButtonOnOff renderCenterBoxButton = new ButtonOnOff(this.getScreenWidth() - 224, this.getScreenHeight() - 48, -1, false, "minihud.gui.button.shape_renderer.toggle_render_center", this.shape.shouldRenderCenterBlock());
+        this.addButton(renderCenterBoxButton, (b, mb) -> this.toggleRenderCenterBox(shape, renderCenterBoxButton));
     }
 
     @Override
@@ -156,7 +160,26 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
                 this.createShapeEditorElementIntField(x + 150, y + 36, shape::getHeight, shape::setHeight, "minihud.gui.label.height_colon", true);
                 this.createDirectionButton(x + 230, y + 36, shape::getMainAxis, shape::setMainAxis, "minihud.gui.label.shape.circle.main_axis_colon");
                 this.createRenderTypeButton(renderTypeX, renderTypeY, this.shape::getRenderType, this.shape::setRenderType, "minihud.gui.label.shape.render_type_colon");
-//                this.createLayerEditControls(146, 162, this.getLayerRange());
+                break;
+            }
+
+            case SQUARE:
+            {
+                ShapeSquare shape = (ShapeSquare) this.shape;
+                this.createShapeEditorElementsSphereBase(x, y, true);
+                this.createShapeEditorElementIntField(x + 150, y + 36, shape::getHeight, shape::setHeight, "minihud.gui.label.height_colon", true);
+                this.createDirectionButton(x + 230, y + 36, shape::getMainAxis, shape::setMainAxis, "minihud.gui.label.shape.circle.main_axis_colon");
+                this.createRenderTypeButton(renderTypeX, renderTypeY, this.shape::getRenderType, this.shape::setRenderType, "minihud.gui.label.shape.render_type_colon");
+                break;
+            }
+
+            case RHOMBUS:
+            {
+                ShapeRhombus shape = (ShapeRhombus) this.shape;
+                this.createShapeEditorElementsSphereBase(x, y, true);
+                this.createShapeEditorElementIntField(x + 150, y + 36, shape::getHeight, shape::setHeight, "minihud.gui.label.height_colon", true);
+                this.createDirectionButton(x + 230, y + 36, shape::getMainAxis, shape::setMainAxis, "minihud.gui.label.shape.circle.main_axis_colon");
+                this.createRenderTypeButton(renderTypeX, renderTypeY, this.shape::getRenderType, this.shape::setRenderType, "minihud.gui.label.shape.render_type_colon");
                 break;
             }
 
@@ -185,6 +208,15 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
                 this.createRenderTypeButton(renderTypeX, renderTypeY, this.shape::getRenderType, this.shape::setRenderType, "minihud.gui.label.shape.render_type_colon");
                 break;
             }
+
+            case CONE:
+            case PYRAMID:
+            case DIAMOND_PYRAMID:
+            case OCTAGON_PYRAMID:
+            {
+                this.createShapeEditorElementsTaperedBase(x, y);
+                break;
+            }
         }
     }
 
@@ -202,7 +234,8 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
         y += 12;
         GuiUtils.createVec3dInputsVertical(x, y, 120, shape.getEffectiveCenter().toVanilla(), new Vec3dEditor(shape::getEffectiveCenter, shape::setCenter, this), true, this);
         x += 11;
-        y += 54;
+//        y += 54;
+        y += 60;
 
         int btnX = x;
         ButtonGeneric button = new ButtonGeneric(btnX, y, -1, false, "minihud.gui.button.render_layers_gui.set_to_player");
@@ -376,6 +409,44 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
         this.createLayerEditControls(xIn + 115, y, this.getLayerRange());
     }
 
+    private void createShapeEditorElementsTaperedBase(int xIn, int yIn)
+    {
+        ShapeTaperedBase shape = (ShapeTaperedBase) this.shape;
+        int x = xIn;
+        int y = yIn + 4;
+        int x2 = x + 160;
+        int y2 = y + 5;
+        int x3 = x + 240;
+        int y3 = y + 5;
+
+        this.addLabel(x, y, -1, 14, 0xFFFFFFFF, StringUtils.translate("minihud.gui.label.center_colon"));
+        y += 14;
+
+        GuiUtils.createVec3dInputsVertical(x, y, 120, Vec3d.of(shape.getOrigin()), new BlockPosEditor(shape::getOrigin, shape::setOrigin, this), true, this);
+        y += 54;
+
+        ButtonGeneric button = new ButtonGeneric(x + 11, y, -1, 20, StringUtils.translate("minihud.gui.button.render_layers_gui.set_to_player"));
+        this.addButton(button, (btn, mbtn) -> this.setBlockPosFromCamera(shape::setOrigin));
+        y += 24;
+
+        this.createShapeEditorElementIntField(x2, y2, shape::getTopRadius, shape::setTopRadius, "minihud.gui.label.top_radius_colon", true);
+        y2 += 34;
+
+        this.createShapeEditorElementIntField(x2, y2, shape::getBottomRadius, shape::setBottomRadius, "minihud.gui.label.bottom_radius_colon", true);
+        y2 += 34;
+
+        this.createShapeEditorElementIntField(x3, y3, shape::getHeight, shape::setHeight, "minihud.gui.label.height_colon", true);
+        y3 += 34;
+
+        this.createDirectionButton(x3 + 12, y3, shape::getDirection, shape::setDirection, "minihud.gui.label.direction_colon");
+        y3 += 34;
+
+        this.createColorInput(x, y);
+        y += 11;
+
+        this.createLayerEditControls(xIn + 115, y, this.getLayerRange());
+    }
+
     private void toggleGridEnabled(ShapeBox shape)
     {
         shape.toggleGridEnabled();
@@ -419,6 +490,12 @@ public class GuiShapeEditor extends GuiRenderLayerEditBase
     {
         shape.toggleRenderThrough();
         button.updateDisplayString(shape.shouldRenderThrough());
+    }
+
+    private void toggleRenderCenterBox(ShapeBase shape, ButtonOnOff button)
+    {
+        shape.toggleRenderCenterBlock();
+        button.updateDisplayString(shape.shouldRenderCenterBlock());
     }
 
     public void createBoxInputs(int x1, int y1, int x2, int y2, int textFieldWidth, ShapeBox shape)

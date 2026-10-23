@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
-import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 
@@ -15,14 +14,16 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -46,7 +47,9 @@ import net.minecraft.world.phys.HitResult;
 import fi.dy.masa.malilib.config.HudAlignment;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.interfaces.IRenderer;
+import fi.dy.masa.malilib.registry.Registry;
 import fi.dy.masa.malilib.render.GuiContext;
+import fi.dy.masa.malilib.render.InventoryOverlayScreen;
 import fi.dy.masa.malilib.render.RenderUtils;
 import fi.dy.masa.malilib.util.InventoryUtils;
 import fi.dy.masa.malilib.util.StringUtils;
@@ -64,7 +67,7 @@ import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.InfoToggle;
 import fi.dy.masa.minihud.config.RendererToggle;
 import fi.dy.masa.minihud.data.DebugDataManager;
-import fi.dy.masa.minihud.data.EntitiesDataManager;
+import fi.dy.masa.minihud.data.EntityDataManager;
 import fi.dy.masa.minihud.data.HudDataManager;
 import fi.dy.masa.minihud.info.InfoLine;
 import fi.dy.masa.minihud.info.InfoLineChunkCache;
@@ -136,16 +139,17 @@ public class RenderHandler implements IRenderer
             return;
         }
 
-		if (DebugDataManager.getInstance().shouldShowDebugHudFix() == false &&
-            mc.player != null && mc.options.hideGui == false &&
-            (Configs.Generic.REQUIRE_SNEAK.getBooleanValue() == false || mc.player.isShiftKeyDown()) &&
+		if (DebugDataManager.getInstance().shouldShowDebugHudFix() &&
+            this.mc.player != null && this.mc.gui.hud.isHidden() == false &&
+            (this.checkScreenWhiteList() == false) &&
+            (Configs.Generic.REQUIRE_SNEAK.getBooleanValue() == false || this.mc.player.isShiftKeyDown()) &&
             Configs.Generic.REQUIRED_KEY.getKeybind().isKeybindHeld())
         {
 
             long currentTime = System.nanoTime();
 
             // Only update the text once per game tick
-            if (currentTime - this.infoUpdateTime >= 50000000L)
+            if ((currentTime - this.infoUpdateTime) >= 50000000L)
             {
                 this.updateLines();
                 this.infoUpdateTime = currentTime;
@@ -164,11 +168,31 @@ public class RenderHandler implements IRenderer
                                    this.lines);
         }
 
+//        System.out.printf("HUD // Screen: %s, isHidden: %s, debugFix: %s\n",
+//                          this.checkScreenBlackList() == false,
+//                          this.mc.gui.hud.isHidden() == false,
+//                          DebugDataManager.getInstance().shouldShowDebugHudFix() == false);
+
         if (Configs.Generic.INVENTORY_PREVIEW_ENABLED.getBooleanValue() &&
             Configs.Generic.INVENTORY_PREVIEW.getKeybind().isKeybindHeld())
         {
             InventoryOverlayHandler.getInstance().getRenderContext(ctx, profiler);
         }
+    }
+
+    private boolean checkScreenWhiteList()
+    {
+        Screen screen = this.mc.gui.screen();
+
+        if (screen != null)
+        {
+            if (screen instanceof InventoryOverlayScreen) { return false; }
+            else if (screen instanceof ChatScreen && Configs.Generic.HUD_DISPLAY_CHAT.getBooleanValue()) { return false; }
+            else if (screen instanceof AbstractContainerScreen && Configs.Generic.HUD_DISPLAY_INVENTORY.getBooleanValue()) { return false; }
+            return true;
+        }
+
+        return false;
     }
 
 //    @Override
@@ -195,7 +219,7 @@ public class RenderHandler implements IRenderer
     public void onExtractWorldLast(DeltaTracker deltaTracker, Camera camera, float ticks, ProfilerFiller profiler)
     {
         if (Configs.Generic.MAIN_RENDERING_TOGGLE.getBooleanValue() &&
-            this.mc.level != null && this.mc.player != null && this.mc.options.hideGui == false)
+            this.mc.level != null && this.mc.player != null && this.mc.gui.hud.isHidden() == false)
         {
             OverlayRenderer.extractOverlays(this.mc, deltaTracker, camera, ticks, profiler);
         }
@@ -205,7 +229,7 @@ public class RenderHandler implements IRenderer
     public void onRenderWorldLast(RenderTarget fb, Matrix4fc modelViewMatrix, CameraRenderState cameraState, Frustum culling, RenderBuffers buffers, GpuBufferSlice terrainFog, Vector4f fogColor, ProfilerFiller profiler)
     {
         if (Configs.Generic.MAIN_RENDERING_TOGGLE.getBooleanValue() &&
-            this.mc.level != null && this.mc.player != null && this.mc.options.hideGui == false)
+            this.mc.level != null && this.mc.player != null && this.mc.gui.hud.isHidden() == false)
         {
             OverlayRenderer.renderOverlays(modelViewMatrix, this.mc, culling, cameraState, profiler);
         }
@@ -241,7 +265,8 @@ public class RenderHandler implements IRenderer
 
                 if (player != null)
                 {
-                    Pair<Entity, CompoundData> pair = EntitiesDataManager.getInstance().requestEntity(world, player.getId());
+                    Pair<Entity, CompoundData> pair = EntityDataManager.getInstance().requestEntity(world, player.getId());
+                    NbtInventory enderCache = Registry.ENTITY_DATA_REGISTRY.chestTracker().getEnderCache();
                     PlayerEnderChestContainer inv;
 
                     if (pair != null && pair.getRight() != null && pair.getRight().contains(NbtKeys.ENDER_ITEMS, Constants.NBT.TAG_LIST))
@@ -263,7 +288,15 @@ public class RenderHandler implements IRenderer
                         inv = player.getEnderChestInventory();
                     }
 
-                    if (inv != null)
+                    if (enderCache != null && !enderCache.isEmpty())
+                    {
+                        CompoundData data = new CompoundData();
+                        ListData list = enderCache.toDataList(world.registryAccess());
+
+                        data.put(NbtKeys.ENDER_ITEMS, list);
+                        fi.dy.masa.malilib.render.RenderUtils.renderDataItemsPreview(ctx, stack, data, x, y, false);
+                    }
+                    else if (inv != null)
                     {
                         try (NbtInventory nbtInv = NbtInventory.fromInventory(inv))
                         {
@@ -1774,7 +1807,7 @@ public class RenderHandler implements IRenderer
             }
             else
             {
-                pair = EntitiesDataManager.getInstance().requestEntity(world, lookedEntity.getId());
+                pair = EntityDataManager.getInstance().requestEntity(world, lookedEntity.getId());
             }
 
             // Remember the last entity so the "refresh time" is smoothed over.
@@ -1821,7 +1854,7 @@ public class RenderHandler implements IRenderer
                 }
                 else
                 {
-                    pair = EntitiesDataManager.getInstance().requestBlockEntity(world, posLooking);
+                    pair = EntityDataManager.getInstance().requestBlockEntity(world, posLooking);
                 }
 
                 // Remember the last entity so the "refresh time" is smoothed over.
@@ -1843,11 +1876,12 @@ public class RenderHandler implements IRenderer
     }
 
     @Nullable
+    @Deprecated(forRemoval = true)
     public Pair<BlockEntity, CompoundData> requestBlockEntityAt(Level world, BlockPos pos)
     {
         if (!(world instanceof ServerLevel))
         {
-            Pair<BlockEntity, CompoundData> pair = EntitiesDataManager.getInstance().requestBlockEntity(world, pos);
+            Pair<BlockEntity, CompoundData> pair = EntityDataManager.getInstance().requestBlockEntity(world, pos);
 
             BlockState state = world.getBlockState(pos);
 
@@ -1857,7 +1891,7 @@ public class RenderHandler implements IRenderer
 
                 if (type != ChestType.SINGLE)
                 {
-                    return EntitiesDataManager.getInstance().requestBlockEntity(world, pos.relative(ChestBlock.getConnectedDirection(state)));
+                    return EntityDataManager.getInstance().requestBlockEntity(world, pos.relative(ChestBlock.getConnectedDirection(state)));
                 }
             }
 

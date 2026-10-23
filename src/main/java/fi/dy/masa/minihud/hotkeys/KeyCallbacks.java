@@ -1,5 +1,8 @@
 package fi.dy.masa.minihud.hotkeys;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
+
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.hotkeys.*;
 import fi.dy.masa.malilib.render.InventoryOverlayScreen;
@@ -7,7 +10,7 @@ import fi.dy.masa.malilib.util.position.Vec3d;
 import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.RendererCallbacks;
 import fi.dy.masa.minihud.config.RendererToggle;
-import fi.dy.masa.minihud.data.EntitiesDataManager;
+import fi.dy.masa.minihud.data.EntityDataManager;
 import fi.dy.masa.minihud.data.HudDataManager;
 import fi.dy.masa.minihud.gui.GuiConfigs;
 import fi.dy.masa.minihud.gui.GuiConfigs.ConfigGuiTab;
@@ -16,11 +19,8 @@ import fi.dy.masa.minihud.gui.GuiShapeManager;
 import fi.dy.masa.minihud.renderer.*;
 import fi.dy.masa.minihud.renderer.shapes.ShapeBase;
 import fi.dy.masa.minihud.renderer.shapes.ShapeManager;
-import fi.dy.masa.minihud.renderer.worker.WorkerDaemonHandler;
 import fi.dy.masa.minihud.util.DataStorage;
 import fi.dy.masa.minihud.util.DebugInfoUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
 
 public class KeyCallbacks
 {
@@ -28,14 +28,12 @@ public class KeyCallbacks
     {
         Callbacks callback = new Callbacks();
 
-//        Configs.Generic.WORKER_THREAD_PROFILE.setValueChangeCallback(WorkerDaemonHandler.INSTANCE::resetProfile);
-
         Configs.Generic.SET_DISTANCE_REFERENCE_POINT.getKeybind().setCallback(callback);
         Configs.Generic.MOVE_SHAPE_TO_PLAYER.getKeybind().setCallback(callback);
         Configs.Generic.OPEN_CONFIG_GUI.getKeybind().setCallback(callback);
         Configs.Generic.SHAPE_EDITOR.getKeybind().setCallback(callback);
         Configs.Generic.INVENTORY_PREVIEW_TOGGLE_SCREEN.getKeybind().setCallback(callback);
-        Configs.Generic.ENTITY_DATA_SYNC.setValueChangeCallback((config) -> EntitiesDataManager.getInstance().onEntityDataSyncToggled(config));
+        Configs.Generic.ENTITY_DATA_SYNC.setValueChangeCallback((config) -> EntityDataManager.getInstance().onEntityDataSyncToggled(config));
         Configs.Generic.HUD_DATA_SYNC.setValueChangeCallback((config) -> HudDataManager.getInstance().onHudDataSyncToggled(config));
 
         Configs.Colors.BEACON_RANGE_LVL1_OVERLAY_COLOR.setValueChangeCallback((config) -> updateBeaconOverlay());
@@ -188,23 +186,13 @@ public class KeyCallbacks
             }
             else if (key == Configs.Generic.INVENTORY_PREVIEW_TOGGLE_SCREEN.getKeybind())
             {
-                if (mc.screen instanceof InventoryOverlayScreen)
+                if (mc.gui.screen() instanceof InventoryOverlayScreen)
                 {
-                    mc.setScreen(null);
+                    mc.gui.setScreen(null);
                 }
                 else if (Configs.Generic.INVENTORY_PREVIEW_ENABLED.getBooleanValue() &&
                         Configs.Generic.INVENTORY_PREVIEW.getKeybind().isKeybindHeld())
                 {
-                    //RayTraceUtils.InventoryPreviewData inventory = RayTraceUtils.getTargetInventory(mc);
-                    /*
-                    InventoryOverlay.Context inventory = RayTraceUtils.getTargetInventory(mc, false);
-
-                    if (inventory != null)
-                    {
-                        mc.setScreen(new InventoryOverlayScreen(inventory));
-                    }
-                     */
-
                     InventoryOverlayHandler.getInstance().refreshInventoryOverlay(mc, Configs.Generic.SHULKER_DISPLAY_BACKGROUND_COLOR.getBooleanValue());
                 }
                 else
