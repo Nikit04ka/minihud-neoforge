@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 //import net.fabricmc.api.EnvType;
 //import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import fi.dy.masa.malilib.network.IClientPayloadData;
 import fi.dy.masa.malilib.network.IPluginClientPlayHandler;
@@ -20,11 +20,7 @@ public abstract class ServuxEntitiesHandler<T extends CustomPacketPayload> imple
 {
 	private final static ServuxEntitiesHandler<ServuxEntitiesPacket.Payload> INSTANCE = new ServuxEntitiesHandler<>()
 	{
-		@Override
-		public void receive(ServuxEntitiesPacket.@NonNull Payload payload, ClientPlayNetworking.@NonNull Context context)
-		{
-			ServuxEntitiesHandler.INSTANCE.receivePlayPayload(payload, context);
-		}
+		// receive() is handled by IPayloadHandler.handle() -> receivePlayPayload() in mafglib
 	};
 
 	public static ServuxEntitiesHandler<ServuxEntitiesPacket.Payload> getInstance() {return INSTANCE;}
@@ -120,7 +116,7 @@ public abstract class ServuxEntitiesHandler<T extends CustomPacketPayload> imple
 	}
 
 	@Override
-	public void receivePlayPayload(T payload, ClientPlayNetworking.Context ctx)
+	public void receivePlayPayload(T payload, IPayloadContext ctx)
 	{
 		if (payload.type().id().equals(CHANNEL_ID))
 		{

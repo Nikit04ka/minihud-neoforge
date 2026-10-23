@@ -11,7 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.util.Util;
 //import net.fabricmc.api.EnvType;
 //import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import fi.dy.masa.malilib.network.IClientPayloadData;
 import fi.dy.masa.malilib.network.IPluginClientPlayHandler;
@@ -29,11 +29,7 @@ public abstract class ServuxStructuresHandler<T extends CustomPacketPayload> imp
 {
 	private final static ServuxStructuresHandler<ServuxStructuresPacket.Payload> INSTANCE = new ServuxStructuresHandler<>()
 	{
-		@Override
-		public void receive(ServuxStructuresPacket.@NonNull Payload payload, ClientPlayNetworking.@NonNull Context context)
-		{
-			ServuxStructuresHandler.INSTANCE.receivePlayPayload(payload, context);
-		}
+		// receive() is handled by IPayloadHandler.handle() -> receivePlayPayload() in mafglib
 	};
 
 	public static ServuxStructuresHandler<ServuxStructuresPacket.Payload> getInstance() {return INSTANCE;}
@@ -156,7 +152,7 @@ public abstract class ServuxStructuresHandler<T extends CustomPacketPayload> imp
 	}
 
 	@Override
-	public void receivePlayPayload(T payload, ClientPlayNetworking.Context ctx)
+	public void receivePlayPayload(T payload, IPayloadContext ctx)
 	{
 		if (payload.type().id().equals(CHANNEL_ID))
 		{
