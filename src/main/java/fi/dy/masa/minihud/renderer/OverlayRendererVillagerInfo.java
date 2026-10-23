@@ -15,7 +15,8 @@ import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.Brain;
+import net.minecraft.world.entity.ai.memory.ExpirableValue;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.monster.zombie.ZombieVillager;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -33,15 +34,19 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.interfaces.IClientTickHandler;
 import fi.dy.masa.malilib.mixin.entity.IMixinMerchantEntity;
 import fi.dy.masa.malilib.render.RenderUtils;
+import fi.dy.masa.malilib.util.MathUtils;
 import fi.dy.masa.malilib.util.WorldUtils;
+import fi.dy.masa.malilib.util.data.Constants;
 import fi.dy.masa.malilib.util.data.DataEntityUtils;
 import fi.dy.masa.malilib.util.data.tag.CompoundData;
 import fi.dy.masa.malilib.util.nbt.NbtKeys;
+import fi.dy.masa.malilib.util.position.Vec3d;
+import fi.dy.masa.malilib.util.text.TextAlignment;
 import fi.dy.masa.minihud.MiniHUD;
 import fi.dy.masa.minihud.config.Configs;
 import fi.dy.masa.minihud.config.RendererToggle;
-import fi.dy.masa.minihud.data.EntitiesDataManager;
-import fi.dy.masa.minihud.mixin.entity.IMixinZombieVillagerEntity;
+import fi.dy.masa.minihud.data.EntityDataManager;
+import fi.dy.masa.minihud.mixin.entity.IMixinZombieVillager;
 import fi.dy.masa.minihud.util.EntityUtils;
 
 public class OverlayRendererVillagerInfo extends OverlayRendererBase implements IClientTickHandler
@@ -50,7 +55,9 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
 
     // Mini Secondary Cache so villagers' data doesn't ... `Flash`
     private final ConcurrentHashMap<Integer, Pair<Long, Pair<Entity, CompoundData>>> recentEntityData;
-    private final HashMap<Entity, List<String>> villagerData;
+    private final ConcurrentHashMap<Entity, List<String>> villagerData;
+    private final ConcurrentHashMap<UUID, GlobalPos> jobSiteData;
+    private final ConcurrentHashMap<UUID, LastTextPlate> lastPos;
     private long lastTick;
     private final int xViewRange;
     private final int yViewRange;
@@ -59,7 +66,9 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
     protected OverlayRendererVillagerInfo()
     {
         this.recentEntityData = new ConcurrentHashMap<>(16, 0.9f, 1);
-        this.villagerData = new HashMap<>();
+        this.villagerData = new ConcurrentHashMap<>(16, 0.9f, 1);
+        this.jobSiteData = new ConcurrentHashMap<>(16, 0.9f, 1);
+        this.lastPos = new ConcurrentHashMap<>(16, 0.9f, 1);
         this.lastTick = System.currentTimeMillis();
         this.xViewRange = 30;
         this.yViewRange = 10;
@@ -84,10 +93,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
         }
 
         // Clear
-        synchronized (this.recentEntityData)
-        {
-            this.recentEntityData.clear();
-        }
+        this.recentEntityData.clear();
     }
 
     @Override
@@ -115,27 +121,32 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
 
     private long getCacheTimeout()
     {
-        return EntitiesDataManager.getInstance().getCacheTimeout();
+        return EntityDataManager.getInstance().getCacheTimeout();
     }
 
     private void tickCache(long now)
     {
         long timeout = this.getCacheTimeout();
 
-        synchronized (this.recentEntityData)
+        this.recentEntityData.forEach(((integer, longPair) ->
         {
-            this.recentEntityData.forEach(((integer, longPair) ->
+            if (longPair != null)
             {
-                if (longPair != null)
+                if ((now - longPair.getLeft()) > timeout || longPair.getLeft() > now)
                 {
-                    if ((now - longPair.getLeft()) > timeout || longPair.getLeft() > now)
-                    {
-                        MiniHUD.debugLog("villagerOverlayCache: entity Id [{}] has timed out by [{}] ms", integer, timeout);
-                        this.recentEntityData.remove(integer);
-                    }
+                    MiniHUD.debugLog("villagerOverlayCache: entity Id [{}] has timed out by [{}] ms", integer, timeout);
+                    this.recentEntityData.remove(integer);
                 }
-            }));
-        }
+            }
+        }));
+
+        this.lastPos.forEach((uuid, pl) ->
+                             {
+                                 if ((now - pl.tick()) > timeout || pl.tick() > now)
+                                 {
+                                     this.lastPos.remove(uuid);
+                                 }
+                             });
     }
 
     private boolean isDataValid(CompoundData data)
@@ -151,7 +162,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
 
     private @Nullable Pair<Entity, CompoundData> getVillagerData(Level world, int entityId)
     {
-        Pair<Entity, CompoundData> pair = EntitiesDataManager.getInstance().requestEntity(world, entityId);
+        Pair<Entity, CompoundData> pair = EntityDataManager.getInstance().requestEntity(world, entityId);
 
         if (pair != null &&
             pair.getRight() != null &&
@@ -160,10 +171,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
         {
             long now = System.currentTimeMillis();
 
-            synchronized (this.recentEntityData)
-            {
-                this.recentEntityData.put(entityId, Pair.of(now, pair));
-            }
+            this.recentEntityData.put(entityId, Pair.of(now, pair));
 
             return pair;
         }
@@ -200,6 +208,55 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
         return list;
     }
 
+    private Optional<GlobalPos> getJobSite(Level world, Villager villager)
+    {
+        if (world == null || villager == null)
+        {
+            return Optional.empty();
+        }
+
+        Pair<Entity, CompoundData> pair = this.getVillagerData(world, villager.getId());
+
+        if (pair != null)
+        {
+            if (pair.getRight() != null && !pair.getRight().isEmpty())
+            {
+                Brain.Packed packed = this.readBrain(pair.getRight());
+
+                if (packed != null)
+                {
+                    ExpirableValue<GlobalPos> pos = packed.memories().get(MemoryModuleType.JOB_SITE);
+
+                    if (pos != null)
+                    {
+                        return Optional.of(pos.value());
+                    }
+                }
+            }
+            else if (pair.getLeft() != null && pair.getLeft() instanceof Villager entity)
+            {
+                Optional<GlobalPos> tempPos = entity.getBrain().getMemoryInternal(MemoryModuleType.JOB_SITE);
+
+                if (tempPos != null && tempPos.isPresent())
+                {
+                    return tempPos;
+                }
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private Brain.Packed readBrain(CompoundData data)
+    {
+        if (data.contains(NbtKeys.BRAIN, Constants.NBT.TAG_COMPOUND))
+        {
+            return data.getCodec(NbtKeys.BRAIN, Brain.Packed.CODEC).orElse(null);
+        }
+
+        return null;
+    }
+
     private int getConversionTime(Level world, ZombieVillager villager)
     {
         if (world == null || villager == null)
@@ -223,7 +280,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
             }
             else if (pair.getLeft() != null && pair.getLeft() instanceof ZombieVillager zombert)
             {
-                conversionTime = ((IMixinZombieVillagerEntity) zombert).minihud_conversionTimer();
+                conversionTime = ((IMixinZombieVillager) zombert).minihud_conversionTimer();
             }
         }
 
@@ -249,7 +306,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
     }
 
     @Override
-    public void update(Vec3 cameraPos, Entity camera, Minecraft mc, ProfilerFiller profiler)
+    public void update(Vec3d cameraPos, Entity camera, Minecraft mc, ProfilerFiller profiler)
     {
         AABB box = camera.getBoundingBox().inflate(this.xViewRange, this.yViewRange, this.zViewRange);
         Level world = WorldUtils.getBestWorld(mc);
@@ -381,7 +438,8 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
                     }
                 }
 
-                this.extractTarget(overlay, librarian);
+                Optional<GlobalPos> jobSite = this.getJobSite(world, librarian);
+                this.extractTarget(overlay, librarian, jobSite.orElse(null));
             }
         }
 
@@ -395,7 +453,7 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
 
                 if (conversionTimer > 0)
                 {
-                    this.extractTarget(List.of(String.format("%ds", Math.round((float) conversionTimer / 20))), villager);
+                    this.extractTarget(List.of(String.format("%ds", Math.round((float) conversionTimer / 20))), villager, null);
                 }
             }
         }
@@ -408,13 +466,13 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
     }
 
     @Override
-    public void render(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    public void render(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         // NO-OP
     }
 
     @Override
-    public void draw(Vec3 cameraPos)
+    public void draw(Vec3d cameraPos)
     {
         if (this.hasData())
         {
@@ -422,10 +480,12 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
 
             this.villagerData.forEach(
                     (target, text) ->
-                            this.renderAtEntity(text, target, cameraPos, mc)
+		                    this.renderAtEntity(text, this.jobSiteData.getOrDefault(target.getUUID(), null),
+		                                        target, cameraPos, mc)
             );
 
             this.villagerData.clear();
+            this.jobSiteData.clear();
         }
     }
 
@@ -434,54 +494,86 @@ public class OverlayRendererVillagerInfo extends OverlayRendererBase implements 
     {
         super.reset();
         this.villagerData.clear();
+        this.jobSiteData.clear();
+        this.lastPos.clear();
     }
 
-    private void extractTarget(List<String> texts, Entity target)
+    private void extractTarget(List<String> texts, Entity target, @Nullable GlobalPos jobSite)
     {
         this.villagerData.put(target, texts);
+
+        if (jobSite != null)
+        {
+            this.jobSiteData.put(target.getUUID(), jobSite);
+        }
     }
 
-    private void renderAtEntity(List<String> texts, Entity targetEntity, Vec3 cameraPos, Minecraft mc)
+    private void renderAtEntity(List<String> texts, GlobalPos jobSite, Entity targetEntity, Vec3d cameraPos, Minecraft mc)
     {
 //        if (cam == null) return;
         float delta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
 //        Vec3 cameraPos = cam.getPosition(delta);
         Vec3 targetPos = targetEntity.getPosition(delta);
-        double hypot = Mth.length(cameraPos.x() - targetPos.x(), cameraPos.z() - targetPos.z());
+        double hypot = Mth.length(cameraPos.x - targetPos.x(), cameraPos.z - targetPos.z());
         double distance = 0.8;
-        double x = targetPos.x() + (cameraPos.x() - targetPos.x()) / hypot * distance;
-        double z = targetPos.z() + (cameraPos.z() - targetPos.z()) / hypot * distance;
+        double x = targetPos.x() + (cameraPos.x - targetPos.x()) / hypot * distance;
+        double z = targetPos.z() + (cameraPos.z - targetPos.z()) / hypot * distance;
         double y = targetPos.y() + 1.5 + 0.1 * texts.size();
+        final float scale = Configs.Generic.VILLAGER_TEXT_SCALE.getFloatValue() * 0.01F;
+        boolean atJobSite = false;
 
         // Render the overlay at its job site, this is useful in trading halls
-        if (targetEntity instanceof LivingEntity living)
+        if (jobSite != null)
         {
-            Optional<GlobalPos> jobSite = living.getBrain().getMemoryInternal(MemoryModuleType.JOB_SITE);
-            if (jobSite != null && jobSite.isPresent())
+            BlockPos pos = jobSite.pos();
+            Vec3 center = Vec3.atCenterOf(pos);
+
+            if (targetPos.distanceTo(center) < 1.7)
             {
-                BlockPos pos = jobSite.get().pos();
-                if (targetPos.distanceTo(pos.getCenter()) < 1.7)
-                {
-                    x = pos.getX() + 0.5;
-                    z = pos.getZ() + 0.5;
-                }
+                x = pos.getX() + 0.5;
+                z = pos.getZ() + 0.5;
+                atJobSite = true;
             }
         }
 
-        for (String line : texts)
-        {
-            // Replace camera entity each call
-            Entity cam = mc.getCameraEntity();
+        Vec3d attachPos = new Vec3d(x, y, z);
+        UUID uuid = targetEntity.getUUID();
+        LastTextPlate lastEntry = this.lastPos.remove(uuid);
+        double diff;
 
-            if (cam != null)
+        if (lastEntry != null && !lastEntry.jobSite())
+        {
+            diff = lastEntry.pos().getDistanceTo(attachPos);
+
+            if (diff > 0)
             {
-                // Get the lerp of Yaw / Pitch
-                final float scale = Configs.Generic.VILLAGER_TEXT_SCALE.getFloatValue() * 0.01F;
-//                RenderUtils.drawTextPlate(List.of(line), x, y, z, 0.02f);
-//                RenderUtils.drawTextPlate(List.of(line), x, y, z, cam.getYRot(delta), cam.getXRot(delta), scale, 0xFFFFFFFF, 0x40000000, this.renderThrough);
-                RenderUtils.drawTextPlate(List.of(line), x, y, z, cam.getYRot(), cam.getXRot(), scale, 0xFFFFFFFF, 0x40000000, this.renderThrough);
-                y -= 0.2;
+                Vec3d lerpPos = MathUtils.lerp(diff, lastEntry.pos(), attachPos);
+
+                RenderUtils.scheduleTextPlate(texts, lerpPos, scale, this.renderThrough, TextAlignment.CENTER);
+                this.lastPos.put(uuid, new LastTextPlate(lerpPos, atJobSite, System.currentTimeMillis()));
+
+                return;
             }
         }
+
+        RenderUtils.scheduleTextPlate(texts, attachPos, scale, this.renderThrough, TextAlignment.CENTER);
+        this.lastPos.put(uuid, new LastTextPlate(attachPos, atJobSite, System.currentTimeMillis()));
+
+//        for (String line : texts)
+//        {
+//            // Replace camera entity each call
+//            Entity cam = mc.getCameraEntity();
+//
+//            if (cam != null)
+//            {
+//                // Get the lerp of Yaw / Pitch
+////                RenderUtils.drawTextPlate(List.of(line), x, y, z, 0.02f);
+////                RenderUtils.drawTextPlate(List.of(line), x, y, z, cam.getYRot(delta), cam.getXRot(delta), scale, 0xFFFFFFFF, 0x40000000, this.renderThrough);
+//                RenderUtils.drawTextPlate(List.of(line), x, y, z, cam.getYRot(), cam.getXRot(), scale, TextAlignment.CENTER, 0xFFFFFFFF, 0x40000000, this.renderThrough);
+//                y -= 0.2;
+//            }
+//        }
     }
+
+    public record LastTextPlate(Vec3d pos, boolean jobSite, long tick) {}
 }

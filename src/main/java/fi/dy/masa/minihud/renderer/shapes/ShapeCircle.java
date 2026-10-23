@@ -17,7 +17,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
 
 import fi.dy.masa.malilib.render.MaLiLibPipelines;
 import fi.dy.masa.malilib.util.StringUtils;
@@ -44,7 +43,7 @@ public class ShapeCircle extends ShapeCircleBase
     }
 
     @Override
-    public void update(Vec3 cameraPos, Entity entity, Minecraft mc, ProfilerFiller profiler)
+    public void update(Vec3d cameraPos, Entity entity, Minecraft mc, ProfilerFiller profiler)
     {
         this.hasData = true;
         this.render(cameraPos, mc, profiler);
@@ -58,7 +57,7 @@ public class ShapeCircle extends ShapeCircleBase
     }
 
     @Override
-    public void render(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    public void render(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         this.allocateBuffers(this.renderLines);
         this.renderQuads(cameraPos, mc, profiler);
@@ -69,7 +68,7 @@ public class ShapeCircle extends ShapeCircleBase
         }
     }
 
-    private void renderQuads(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    private void renderQuads(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         if (mc.level == null || mc.player == null)
         {
@@ -78,7 +77,12 @@ public class ShapeCircle extends ShapeCircleBase
 
         profiler.push("circle_quads");
         RenderObjectVbo ctx = this.renderObjects.getFirst();
-        BufferBuilder builder = ctx.start(() -> "minihud:circle/quads", this.renderThroughShape ? MaLiLibPipelines.MINIHUD_SHAPE_NO_DEPTH_OFFSET : MaLiLibPipelines.MINIHUD_SHAPE_OFFSET_NO_CULL);
+        BufferBuilder builder = ctx.start(() -> "minihud:circle/quads", this.renderThroughShape ? MaLiLibPipelines.MINIHUD_SHAPE_NO_DEPTH_OFFSET : MaLiLibPipelines.MINIHUD_SHAPE_OFFSET_NO_CULL, 0);
+
+        if (this.shouldRenderCenterBlock())
+        {
+            fi.dy.masa.malilib.render.RenderUtils.drawBlockBoundingBoxSidesBatchedQuads(this.getCenterBlock(), cameraPos.toVanilla(), this.color, 0.001, builder);
+        }
 
         this.renderCircleShapeQuads(cameraPos, builder);
 
@@ -92,7 +96,7 @@ public class ShapeCircle extends ShapeCircleBase
 
                 if (this.shouldResort)
                 {
-                    ctx.startResorting(meshData, ctx.createVertexSorter(cameraPos));
+                    ctx.startResorting(meshData, ctx.createVertexSorter(cameraPos.toVanilla()));
                 }
 
                 meshData.close();
@@ -103,11 +107,10 @@ public class ShapeCircle extends ShapeCircleBase
             MiniHUD.LOGGER.error("ShapeCircle#renderQuads(): Exception; {}", err.getMessage());
         }
 
-//        matrices.pop();
         profiler.pop();
     }
 
-    private void renderOutlines(Vec3 cameraPos, Minecraft mc, ProfilerFiller profiler)
+    private void renderOutlines(Vec3d cameraPos, Minecraft mc, ProfilerFiller profiler)
     {
         if (mc.level == null || mc.player == null || !this.renderLines)
         {
@@ -116,7 +119,12 @@ public class ShapeCircle extends ShapeCircleBase
 
         profiler.push("circle_outlines");
         RenderObjectVbo ctx = this.renderObjects.get(1);
-        BufferBuilder builder = ctx.start(() -> "minihud:circle/outlines", MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_LEQUAL_DEPTH);
+        BufferBuilder builder = ctx.start(() -> "minihud:circle/outlines", MaLiLibPipelines.DEBUG_LINES_MASA_SIMPLE_LEQUAL_DEPTH, 0);
+
+        if (this.shouldRenderCenterBlock())
+        {
+            fi.dy.masa.malilib.render.RenderUtils.drawBlockBoundingBoxOutlinesBatchedLines(this.getCenterBlock(), cameraPos.toVanilla(), this.colorLines, 0.001, this.glLineWidth, builder);
+        }
 
         this.renderCircleShapeOutlines(cameraPos, this.glLineWidth, builder);
 
@@ -156,7 +164,7 @@ public class ShapeCircle extends ShapeCircleBase
         this.setNeedsUpdate();
     }
 
-    protected void renderCircleShapeQuads(Vec3 cameraPos, BufferBuilder builder)
+    protected void renderCircleShapeQuads(Vec3d cameraPos, BufferBuilder builder)
     {
         LongOpenHashSet positions = new LongOpenHashSet();
         Consumer<BlockPos.MutableBlockPos> positionConsumer = this.getPositionCollector(positions);
@@ -214,7 +222,7 @@ public class ShapeCircle extends ShapeCircleBase
         }
     }
 
-    protected void renderCircleShapeOutlines(Vec3 cameraPos,
+    protected void renderCircleShapeOutlines(Vec3d cameraPos,
                                              float lineWidth,
                                              BufferBuilder builder)
     {
@@ -306,6 +314,7 @@ public class ShapeCircle extends ShapeCircleBase
         List<SideQuad> quads = new ArrayList<>();
         Long2ByteOpenHashMap handledPositions = new Long2ByteOpenHashMap();
         final Direction.Axis mainAxis = mainAxisDirection.getAxis();
+        final boolean isNegativeAxisDirection = mainAxisDirection.getAxisDirection() == Direction.AxisDirection.NEGATIVE;
 
         for (SideQuad strip : strips.values())
         {
@@ -317,10 +326,43 @@ public class ShapeCircle extends ShapeCircleBase
                 continue;
             }
 
-            final long startPos = side == mainAxisDirection ? SphereUtils.offsetPos(pos, mainAxisDirection, circleHeight - 1) : pos;
-            final int height = side.getAxis() != mainAxis ? circleHeight : strip.height();
+            final Direction.Axis sideAxis = side.getAxis();
+            final boolean isSideQuad = sideAxis != mainAxis;
+            final long startPos = (side == mainAxisDirection || (isSideQuad && isNegativeAxisDirection))
+                                  ? SphereUtils.offsetPos(pos, mainAxisDirection, circleHeight - 1)
+                                  : pos;
 
-            quads.add(new SideQuad(startPos, strip.width(), height, side));
+//            final long startPos = side == mainAxisDirection ? SphereUtils.offsetPos(pos, mainAxisDirection, circleHeight - 1) : pos;
+//            final int height = side.getAxis() != mainAxis ? circleHeight : strip.height();
+//            quads.add(new SideQuad(startPos, strip.width(), height, side));
+
+            int quadWidth;
+            int quadHeight;
+
+            if (isSideQuad)
+            {
+                Direction.Axis stripAxis = SphereUtils.getThirdAxis(mainAxis, sideAxis);
+                Direction.Axis expectedWidthAxis = (sideAxis == Direction.Axis.X) ? Direction.Axis.Z : Direction.Axis.X;
+
+                // Swap dimensions if the measured strip direction differs from expected quad width
+                if (stripAxis != expectedWidthAxis)
+                {
+                    quadWidth = circleHeight;
+                    quadHeight = strip.width();
+                }
+                else
+                {
+                    quadWidth = strip.width();
+                    quadHeight = circleHeight;
+                }
+            }
+            else
+            {
+                quadWidth = strip.width();
+                quadHeight = strip.height();
+            }
+
+            quads.add(new SideQuad(startPos, quadWidth, quadHeight, side));
         }
 
         return quads;

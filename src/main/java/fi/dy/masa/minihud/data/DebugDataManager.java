@@ -3,11 +3,11 @@ package fi.dy.masa.minihud.data;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nonnull;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.debug.DebugScreenEntryList;
-import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
+import net.minecraft.client.gui.components.debug.*;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
@@ -15,14 +15,13 @@ import net.minecraft.resources.Identifier;
 
 import fi.dy.masa.minihud.MiniHUD;
 import fi.dy.masa.minihud.config.RendererToggle;
-import fi.dy.masa.minihud.mixin.debug.IMixinClientPlayNetworkHandler;
+import fi.dy.masa.minihud.mixin.debug.IMixinClientPacketListener;
 import fi.dy.masa.minihud.util.DataStorage;
 import fi.dy.masa.minihud.util.DebugRenderType;
 
 public class DebugDataManager
 {
     private static final DebugDataManager INSTANCE = new DebugDataManager();
-//    private final static ServuxDebugHandler<ServuxDebugPacket.Payload> HANDLER = ServuxDebugHandler.getInstance();
 
 	private final Minecraft mc;
     private boolean servuxServer;
@@ -131,19 +130,31 @@ public class DebugDataManager
 	 */
 	public boolean shouldShowDebugHudFix()
 	{
+		if (!this.mc.isGameLoadFinished()) { return false; }
 		DebugScreenEntryList profile = this.mc.debugEntries;
+		if (profile == null || profile.isOverlayVisible()) { return false; }
+		Map<Identifier, DebugScreenEntry> map = DebugScreenEntries.allEntries();
 		Collection<Identifier> list = profile.getCurrentlyEnabled();
+		boolean result = true;
 
-		return (profile.isOverlayVisible() || !this.checkVisibleEntries(list))
-				&& (!this.mc.options.hideGui || this.mc.screen != null);
+		for (Map.Entry<Identifier, DebugScreenEntry> entry : map.entrySet())
+		{
+			if (list.contains(entry.getKey()) && entry.getValue().category() == DebugEntryCategory.SCREEN_TEXT)
+			{
+				result = false;
+			}
+		}
+
+		return result;
 	}
 
+	// Fallback
 	private boolean checkVisibleEntries(Collection<Identifier> list)
 	{
 		if (list.isEmpty()) return true;
 		for (Identifier entry : list)
 		{
-			// Whitelist the Debug Renderer ones (see DebugHudEntries)
+			// Whitelist the Debug Renderer ones (see DebugScreenEntries)
 			switch (entry.getPath())
 			{
 				case "entity_hitboxes" -> { continue; }
@@ -246,11 +257,11 @@ public class DebugDataManager
 	{
 		if (this.mc.getConnection() != null)
 		{
-			((IMixinClientPlayNetworkHandler) this.mc.getConnection())
+			((IMixinClientPacketListener) this.mc.getConnection())
 					.minihud_getDebugManager().clear();
 		}
 
-		this.mc.levelRenderer.debugRenderer.refreshRendererList();
+		this.mc.levelExtractor.debugRenderer.refreshRendererList();
 	}
 
 	public void setIsServuxServer()
@@ -372,7 +383,7 @@ public class DebugDataManager
 
 	/**
 	 * Resync stored Types
-	 * @param list
+	 * @param list -
 	 */
 	private void resyncFromList(List<DebugRenderType> list)
 	{

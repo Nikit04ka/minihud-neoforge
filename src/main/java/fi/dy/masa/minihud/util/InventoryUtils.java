@@ -2,33 +2,18 @@ package fi.dy.masa.minihud.util;
 
 import java.util.Iterator;
 import java.util.List;
-import net.minecraft.core.BlockPos;
+
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.Bees;
 import net.minecraft.world.item.component.BundleContents;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
-import fi.dy.masa.minihud.event.RenderHandler;
 
 public class InventoryUtils
 {
-    public static Container getInventory(Level world, BlockPos pos)
-    {
-        Container inv = fi.dy.masa.malilib.util.InventoryUtils.getInventory(world, pos);
-
-        if ((inv == null || inv.isEmpty()) && !DataStorage.getInstance().hasIntegratedServer())
-        {
-            RenderHandler.getInstance().requestBlockEntityAt(world, pos);
-        }
-
-        return inv;
-    }
-
     public static int recalculateBundleSize(BundleContents bundle, int maxCount)
     {
-        Iterator<ItemStack> iter = bundle.itemCopyStream().iterator();
+        Iterator<ItemStack> iter = bundle.itemCopies().iterator();
         final int vanillaMax = 64;
         final int vanillaBundleAdj = 4; // Why does a nested, bundle count as 4, mojang?
         int newCount = 0;

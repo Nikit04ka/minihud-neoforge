@@ -9,6 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.component.TooltipProvider;
 import net.minecraft.world.level.block.BeehiveBlock;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,20 +24,19 @@ public abstract class MixinItemStack
 {
     @Shadow public abstract Item getItem();
 
-    @Inject(method = "addToTooltip",
-            at = @At(value = "HEAD"),
-            cancellable = true)
-    private <T> void minihud_disableVanillaBeeTooltips(DataComponentType<T> componentType, Item.TooltipContext context, TooltipDisplay displayComponent, Consumer<Component> textConsumer, TooltipFlag type, CallbackInfo ci)
+    @Inject(method = "addToTooltip(Lnet/minecraft/core/component/DataComponentType;Lnet/minecraft/world/item/component/TooltipProvider$Getter;Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/item/component/TooltipDisplay;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;)V",
+            at = @At(value = "HEAD"), cancellable = true)
+    private <T> void minihud_disableVanillaBeeTooltips(DataComponentType<T> type, TooltipProvider.Getter<T> tooltipGetter, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> consumer, TooltipFlag flag, CallbackInfo ci)
     {
         if (Configs.Generic.DISABLE_VANILLA_BEE_TOOLTIPS.getBooleanValue())
         {
             if (Configs.Generic.BEE_TOOLTIPS.getBooleanValue() &&
-                componentType == DataComponents.BEES)
+                type == DataComponents.BEES)
             {
                 ci.cancel();
             }
             else if (Configs.Generic.HONEY_TOOLTIPS.getBooleanValue() &&
-                     componentType == DataComponents.BLOCK_STATE &&
+                     type == DataComponents.BLOCK_STATE &&
                      this.getItem() instanceof BlockItem block &&
                      block.getBlock() instanceof BeehiveBlock)
             {

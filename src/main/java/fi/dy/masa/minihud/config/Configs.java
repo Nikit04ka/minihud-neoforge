@@ -12,7 +12,6 @@ import com.google.gson.JsonPrimitive;
 import fi.dy.masa.malilib.config.*;
 import fi.dy.masa.malilib.config.options.*;
 import fi.dy.masa.malilib.hotkeys.IHotkey;
-import fi.dy.masa.malilib.hotkeys.KeyAction;
 import fi.dy.masa.malilib.hotkeys.KeybindSettings;
 import fi.dy.masa.malilib.registry.Registry;
 import fi.dy.masa.malilib.util.FileUtils;
@@ -70,6 +69,8 @@ public class Configs implements IConfigHandler
         public static final ConfigOptionList    DATE_FORMAT_TYPE                    = new ConfigOptionList("dateFormatType", TimeFormat.REGULAR).apply(GENERIC_KEY);
         public static final ConfigString        DATE_FORMAT_STRING                  = new ConfigString("dateFormatString", "yyyy-MM-dd HH:mm:ss").apply(GENERIC_KEY);
         public static final ConfigString        DATE_FORMAT_MINECRAFT               = new ConfigString("dateFormatMinecraft", "MC time: (day {DAY}) {HOUR}:{MIN}:xx").apply(GENERIC_KEY);
+        public static final ConfigBoolean       DISPLAY_FILE_OPS_FEEDBACK           = new ConfigBoolean("displayFileOpsFeedback", false).apply(GENERIC_KEY);
+        public static final ConfigBoolean       DISPLAY_END_CLOCK                   = new ConfigBoolean("displayEndClock", false).apply(GENERIC_KEY);
         public static final ConfigOptionList    DURATION_FORMAT_TYPE                = new ConfigOptionList("durationFormatType", DurationFormat.PRETTY).apply(GENERIC_KEY);
         public static final ConfigString        DURATION_FORMAT_STRING              = new ConfigString("durationFormatString", "HH:mm:ss.SSS").apply(GENERIC_KEY);
         public static final ConfigBoolean       DEBUG_MESSAGES                      = new ConfigBoolean("debugMessages", false).apply(GENERIC_KEY);
@@ -80,18 +81,18 @@ public class Configs implements IConfigHandler
         public static final ConfigBoolean       ENTITY_DATA_SYNC_BACKUP             = new ConfigBoolean("entityDataSyncBackup", false).apply(GENERIC_KEY);
         public static final ConfigBoolean       ENTITY_DATA_SYNC_BACKUP_OPEN_TO_LAN = new ConfigBoolean("entityDataSyncBackupOpenToLan", false).apply(GENERIC_KEY);
         public static final ConfigFloat         ENTITY_DATA_SYNC_CACHE_REFRESH      = new ConfigFloat("entityDataSyncCacheRefresh", 0.25f, 0.05f, 1.0f).apply(GENERIC_KEY);
-        public static final ConfigFloat         ENTITY_DATA_SYNC_CACHE_TIMEOUT      = new ConfigFloat("entityDataSyncCacheTimeout", 2.75f, 1.0f, 25.0f).apply(GENERIC_KEY);
+        public static final ConfigFloat         ENTITY_DATA_SYNC_CACHE_TIMEOUT      = new ConfigFloat("entityDataSyncCacheTimeout", 2.75f, 1.0f, 30.0f).apply(GENERIC_KEY);
 //        public static final ConfigBoolean       ENTITY_DATA_LOAD_NBT                = new ConfigBoolean("entityDataSyncLoadNbt", false).apply(GENERIC_KEY);
         //public static final ConfigBoolean       FIX_VANILLA_DEBUG_RENDERERS         = new ConfigBoolean("enableVanillaDebugRendererFix", true).apply(GENERIC_KEY);
 //        public static final ConfigBoolean       FIX_VANILLA_DEBUG_RENDERER_THROUGH  = new ConfigBoolean("enableVanillaDebugRenderThroughFix", true).apply(GENERIC_KEY);
         public static final ConfigDouble        FONT_SCALE                          = new ConfigDouble("fontScale", 0.5, 0.01, 100.0).apply(GENERIC_KEY);
         public static final ConfigOptionList    HUD_ALIGNMENT                       = new ConfigOptionList("hudAlignment", HudAlignment.TOP_LEFT).apply(GENERIC_KEY);
         public static final ConfigBooleanHotkeyed HUD_DATA_SYNC                     = new ConfigBooleanHotkeyed("hudDataSync", false, "").apply(GENERIC_KEY);
+        public static final ConfigBooleanHotkeyed HUD_DISPLAY_CHAT                  = new ConfigBooleanHotkeyed("hudDisplayChat", true, "").apply(GENERIC_KEY);
+        public static final ConfigBooleanHotkeyed HUD_DISPLAY_INVENTORY             = new ConfigBooleanHotkeyed("hudDisplayInventory", false, "").apply(GENERIC_KEY);
         public static final ConfigBooleanHotkeyed HUD_STATUS_EFFECTS_SHIFT          = new ConfigBooleanHotkeyed("hudStatusEffectsShift",true, "").apply(GENERIC_KEY);
 //        public static final ConfigBoolean       INFO_LINES_USES_NBT                 = new ConfigBoolean("infoLinesUsesNbt", true).apply(GENERIC_KEY);
-        public static final ConfigHotkey        INVENTORY_PREVIEW                   = new ConfigHotkey("inventoryPreview", "LEFT_ALT", KeybindSettings.PRESS_ALLOWEXTRA).apply(GENERIC_KEY);
         public static final ConfigBoolean       INVENTORY_PREVIEW_ENABLED           = new ConfigBoolean("inventoryPreviewEnabled", false).apply(GENERIC_KEY);
-        public static final ConfigHotkey        INVENTORY_PREVIEW_TOGGLE_SCREEN     = new ConfigHotkey("inventoryPreviewToggleScreen", "BUTTON_3", KeybindSettings.create(KeybindSettings.Context.ANY, KeyAction.PRESS, true, true, false, true)).apply(GENERIC_KEY);
         public static final ConfigBoolean       INVENTORY_PREVIEW_VILLAGER_BG_COLOR = new ConfigBoolean("inventoryPreviewVillagerBGColor", false).apply(GENERIC_KEY);
         public static final ConfigBoolean       LIGHT_LEVEL_AUTO_HEIGHT             = new ConfigBoolean("lightLevelAutoHeight", false).apply(GENERIC_KEY);
         public static final ConfigBoolean       LIGHT_LEVEL_COLORED_NUMBERS         = new ConfigBoolean("lightLevelColoredNumbers", true).apply(GENERIC_KEY);
@@ -117,14 +118,9 @@ public class Configs implements IConfigHandler
         public static final ConfigBoolean       MAP_PREVIEW                         = new ConfigBoolean("mapPreview", false).apply(GENERIC_KEY);
         public static final ConfigBoolean       MAP_PREVIEW_REQUIRE_SHIFT           = new ConfigBoolean("mapPreviewRequireShift", true).apply(GENERIC_KEY);
         public static final ConfigInteger       MAP_PREVIEW_SIZE                    = new ConfigInteger("mapPreviewSize", 160, 16, 512).apply(GENERIC_KEY);
-        public static final ConfigHotkey        MOVE_SHAPE_TO_PLAYER                = new ConfigHotkey("moveShapeToPlayer", "").apply(GENERIC_KEY);
         public static final ConfigBoolean       OFFSET_SUBTITLE_HUD                 = new ConfigBoolean("offsetSubtitleHud", true).apply(GENERIC_KEY);
-        public static final ConfigHotkey        OPEN_CONFIG_GUI                     = new ConfigHotkey("openConfigGui", "H,C").apply(GENERIC_KEY);
         public static final ConfigBoolean       REQUIRE_SNEAK                       = new ConfigBoolean("requireSneak", false).apply(GENERIC_KEY);
-        public static final ConfigHotkey        REQUIRED_KEY                        = new ConfigHotkey("requiredKey", "", KeybindSettings.MODIFIER_INGAME_EMPTY).apply(GENERIC_KEY);
-        public static final ConfigInteger       SERVER_NBT_REQUEST_RATE             = new ConfigInteger("serverNbtRequestRate", 2).apply(GENERIC_KEY);
-        public static final ConfigHotkey        SET_DISTANCE_REFERENCE_POINT        = new ConfigHotkey("setDistanceReferencePoint", "").apply(GENERIC_KEY);
-        public static final ConfigHotkey        SHAPE_EDITOR                        = new ConfigHotkey("shapeEditor", "").apply(GENERIC_KEY);
+        public static final ConfigInteger       SERVER_NBT_REQUEST_RATE             = new ConfigInteger("serverNbtRequestRate", 2, 1, 8).apply(GENERIC_KEY);
         public static final ConfigBoolean       SHULKER_BOX_PREVIEW                 = new ConfigBoolean("shulkerBoxPreview", false).apply(GENERIC_KEY);
         public static final ConfigBoolean       SHULKER_DISPLAY_BACKGROUND_COLOR    = new ConfigBoolean("shulkerDisplayBgColor", true).apply(GENERIC_KEY);
         public static final ConfigBoolean       SHULKER_DISPLAY_ENDER_CHEST         = new ConfigBoolean("shulkerDisplayEnderChest", false).apply(GENERIC_KEY);
@@ -224,6 +220,7 @@ public class Configs implements IConfigHandler
                 STRUCTURES_RENDER_THROUGH,
                 STRUCTURES_RENDER_OUTLINES,
                 STRUCTURES_RENDER_OUTLINES_WHITE,
+                DISPLAY_FILE_OPS_FEEDBACK,
                 TRANSLATION_LANGUAGE,
                 TRANSLATION_MODE,
                 USE_CUSTOMIZED_COORDINATES,
@@ -232,12 +229,7 @@ public class Configs implements IConfigHandler
 //                WORKER_THREAD_PROFILE,
 
                 MAIN_RENDERING_TOGGLE,
-                MOVE_SHAPE_TO_PLAYER,
-                OPEN_CONFIG_GUI,
-                REQUIRED_KEY,
                 SERVER_NBT_REQUEST_RATE,
-                SET_DISTANCE_REFERENCE_POINT,
-                SHAPE_EDITOR,
 
                 BLOCK_GRID_OVERLAY_MODE,
                 LIGHT_LEVEL_MARKER_CONDITION,
@@ -245,6 +237,8 @@ public class Configs implements IConfigHandler
                 LIGHT_LEVEL_NUMBER_CONDITION,
                 LIGHT_LEVEL_NUMBER_MODE,
                 HUD_ALIGNMENT,
+                HUD_DISPLAY_CHAT,
+                HUD_DISPLAY_INVENTORY,
 
                 BIOME_OVERLAY_RANGE,
                 BIOME_OVERLAY_RANGE_VERTICAL,
@@ -256,6 +250,7 @@ public class Configs implements IConfigHandler
                 DATE_FORMAT_TYPE,
                 DATE_FORMAT_STRING,
                 DATE_FORMAT_MINECRAFT,
+                DISPLAY_END_CLOCK,
                 DURATION_FORMAT_TYPE,
                 DURATION_FORMAT_STRING,
                 FONT_SCALE,
@@ -276,9 +271,7 @@ public class Configs implements IConfigHandler
                 TEXT_POS_Y,
                 TIME_DAY_DIVISOR,
                 TIME_TOTAL_DIVISOR,
-                INVENTORY_PREVIEW,
                 INVENTORY_PREVIEW_ENABLED,
-                INVENTORY_PREVIEW_TOGGLE_SCREEN,
                 INVENTORY_PREVIEW_VILLAGER_BG_COLOR,
                 VILLAGER_CONVERSION_TICKS,
                 VILLAGER_OFFER_ENCHANTMENT_BOOKS,
@@ -293,14 +286,7 @@ public class Configs implements IConfigHandler
                 MAIN_RENDERING_TOGGLE,
                 HUD_DATA_SYNC,
                 HUD_STATUS_EFFECTS_SHIFT,
-                ENTITY_DATA_SYNC,
-                MOVE_SHAPE_TO_PLAYER,
-                OPEN_CONFIG_GUI,
-                REQUIRED_KEY,
-                SET_DISTANCE_REFERENCE_POINT,
-                SHAPE_EDITOR,
-                INVENTORY_PREVIEW,
-                INVENTORY_PREVIEW_TOGGLE_SCREEN
+                ENTITY_DATA_SYNC
         );
     }
 
@@ -334,8 +320,14 @@ public class Configs implements IConfigHandler
         public static final ConfigColor SHAPE_CAN_DESPAWN_SPHERE                = new ConfigColor("shapeCanDespawnSphere",              "#60A04050").apply(COLORS_KEY);
         public static final ConfigColor SHAPE_CAN_SPAWN_SPHERE                  = new ConfigColor("shapeCanSpawnSphere",                "#60A04050").apply(COLORS_KEY);
         public static final ConfigColor SHAPE_CIRCLE                            = new ConfigColor("shapeCircle",                        "#6030B0B0").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_SQUARE                            = new ConfigColor("shapeSquare",                        "#6030B0B0").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_RHOMBUS                           = new ConfigColor("shapeRhombus",                       "#60B030B0").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_CONE                              = new ConfigColor("shapeCone",                          "#60FFAA00").apply(COLORS_KEY);
         public static final ConfigColor SHAPE_DESPAWN_SPHERE                    = new ConfigColor("shapeDespawnSphere",                 "#60A04050").apply(COLORS_KEY);
         public static final ConfigColor SHAPE_LINE_BLOCKY                       = new ConfigColor("shapeLineBlocky",                    "#6030F0B0").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_PYRAMID                           = new ConfigColor("shapePyramid",                       "#6040FF40").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_DIAMOND_PYRAMID                   = new ConfigColor("shapeDiamondPyramid",                "#60B030B0").apply(COLORS_KEY);
+        public static final ConfigColor SHAPE_OCTAGON_PYRAMID                   = new ConfigColor("shapeOctagonPyramid",                "#60FF5050").apply(COLORS_KEY);
         public static final ConfigColor SHAPE_SPHERE_BLOCKY                     = new ConfigColor("shapeSphereBlocky",                  "#6030B0B0").apply(COLORS_KEY);
         public static final ConfigColor SLIME_CHUNKS_OVERLAY_COLOR              = new ConfigColor("slimeChunksOverlayColor",            "#3020F020").apply(COLORS_KEY);
         public static final ConfigColor SPAWN_PLAYER_ENTITY_OVERLAY_COLOR       = new ConfigColor("spawnPlayerEntityOverlayColor",      "#302050D0").apply(COLORS_KEY);
@@ -378,8 +370,14 @@ public class Configs implements IConfigHandler
                 SHAPE_CAN_DESPAWN_SPHERE,
                 SHAPE_CAN_SPAWN_SPHERE,
                 SHAPE_CIRCLE,
+                SHAPE_SQUARE,
+                SHAPE_RHOMBUS,
+                SHAPE_CONE,
                 SHAPE_DESPAWN_SPHERE,
                 SHAPE_LINE_BLOCKY,
+                SHAPE_PYRAMID,
+                SHAPE_DIAMOND_PYRAMID,
+                SHAPE_OCTAGON_PYRAMID,
                 SHAPE_SPHERE_BLOCKY,
                 SLIME_CHUNKS_OVERLAY_COLOR,
                 SPAWN_PLAYER_ENTITY_OVERLAY_COLOR,
@@ -411,6 +409,7 @@ public class Configs implements IConfigHandler
 
                 ConfigUtils.readConfigBase(root, "Colors", Configs.Colors.OPTIONS);
                 ConfigUtils.readConfigBase(root, "Generic", Configs.Generic.OPTIONS);
+                ConfigUtils.readConfigBase(root, "GenericHotkeys", Hotkeys.HOTKEY_LIST);
                 ConfigUtils.readHotkeyToggleOptions(root, "InfoHotkeys", "InfoTypeToggles", InfoToggle.VALUES);
                 ConfigUtils.readHotkeyToggleOptions(root, "RendererHotkeys", "RendererToggles", RendererToggle.VALUES);
                 ConfigUtils.readConfigBase(root, "StructureColors", StructureToggle.COLOR_CONFIGS);
@@ -468,6 +467,7 @@ public class Configs implements IConfigHandler
 
             ConfigUtils.writeConfigBase(root, "Colors", Configs.Colors.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Generic", Configs.Generic.OPTIONS);
+            ConfigUtils.writeConfigBase(root, "GenericHotkeys", Hotkeys.HOTKEY_LIST);
             ConfigUtils.writeHotkeyToggleOptions(root, "InfoHotkeys", "InfoTypeToggles", InfoToggle.VALUES);
             ConfigUtils.writeHotkeyToggleOptions(root, "RendererHotkeys", "RendererToggles", RendererToggle.VALUES);
             ConfigUtils.writeConfigBase(root, "StructureColors", StructureToggle.COLOR_CONFIGS);

@@ -12,13 +12,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 import fi.dy.masa.malilib.util.EntityUtils;
-import fi.dy.masa.malilib.util.IntBoundingBox;
-import fi.dy.masa.malilib.util.LayerRange;
 import fi.dy.masa.malilib.util.data.Color4f;
-import fi.dy.masa.malilib.util.position.PositionUtils;
+import fi.dy.masa.malilib.util.position.*;
 import fi.dy.masa.minihud.renderer.shapes.SideQuad;
 import fi.dy.masa.minihud.util.ShapeRenderType;
 import fi.dy.masa.minihud.util.shape.SphereUtils;
@@ -90,7 +87,7 @@ public class RenderUtils
         return boxes;
     }
 
-    public static void renderWallQuads(AABB box, Vec3 cameraPos, Color4f color,
+    public static void renderWallQuads(AABB box, Vec3d cameraPos, Color4f color,
                                        BufferBuilder bufferQuads)
     {
         double cx = cameraPos.x;
@@ -107,7 +104,7 @@ public class RenderUtils
             AABB box,
             double lineIntervalH, double lineIntervalV,
             boolean alignLinesToModulo,
-            Vec3 cameraPos,
+            Vec3d cameraPos,
             Color4f color,
 			float lineWidth,
             BufferBuilder bufferLines)
@@ -158,7 +155,7 @@ public class RenderUtils
         }
     }
 
-    public static void drawBoxQuads(IntBoundingBox bb, Vec3 cameraPos, Color4f color,
+    public static void drawBoxQuads(IntBoundingBox bb, Vec3d cameraPos, Color4f color,
                                     BufferBuilder bufferQuads)
     {
         float minX = (float) (bb.minX() - cameraPos.x);
@@ -171,7 +168,7 @@ public class RenderUtils
         fi.dy.masa.malilib.render.RenderUtils.drawBoxAllSidesBatchedQuads(minX, minY, minZ, maxX, maxY, maxZ, color, bufferQuads);
     }
 
-	public static void drawBoxOutlines(IntBoundingBox bb, Vec3 cameraPos, Color4f color,
+	public static void drawBoxOutlines(IntBoundingBox bb, Vec3d cameraPos, Color4f color,
 									   float lineWidth,
 	                                   BufferBuilder bufferQuads)
 	{
@@ -190,7 +187,7 @@ public class RenderUtils
      */
     public static void drawBlockSpaceSideBatchedQuads(long posLong, Direction side,
                                                       Color4f color, double expand,
-                                                      Vec3 cameraPos,
+                                                      Vec3d cameraPos,
                                                       BufferBuilder buffer)
     {
         int x = BlockPos.getX(posLong);
@@ -253,7 +250,7 @@ public class RenderUtils
     }
 
     public static void drawBlockSpaceSideBatchedLines(long posLong, Direction side,
-                                                      Color4f color, double expand, Vec3 cameraPos,
+                                                      Color4f color, double expand, Vec3d cameraPos,
 													  float lineWidth,
                                                       BufferBuilder buffer)
     {
@@ -318,7 +315,7 @@ public class RenderUtils
                                                  LayerRange range,
                                                  Color4f color,
                                                  double expand,
-                                                 Vec3 cameraPos,
+                                                 Vec3d cameraPos,
 												 float lineWidth,
                                                  BufferBuilder buffer)
     {
@@ -371,7 +368,7 @@ public class RenderUtils
                                                   LayerRange range,
                                                   Color4f color,
                                                   double expand,
-                                                  Vec3 cameraPos,
+                                                  Vec3d cameraPos,
                                                   BufferBuilder buffer)
     {
         boolean full = renderType == ShapeRenderType.FULL_BLOCK;
@@ -420,7 +417,7 @@ public class RenderUtils
                                             LayerRange range,
                                             Color4f color,
                                             double expand,
-                                            Vec3 cameraPos,
+                                            Vec3d cameraPos,
                                             BufferBuilder buffer)
     {
         //int count = 0;
@@ -451,7 +448,7 @@ public class RenderUtils
                                                    LayerRange range,
                                                    Color4f color,
                                                    double expand,
-                                                   Vec3 cameraPos,
+                                                   Vec3d cameraPos,
 												   float lineWidth,
                                                    BufferBuilder buffer)
     {
@@ -481,7 +478,7 @@ public class RenderUtils
     }
 
     public static void renderQuads(Collection<SideQuad> quads, Color4f color, double expand,
-                                   Vec3 cameraPos,
+                                   Vec3d cameraPos,
                                    BufferBuilder buffer)
     {
         for (SideQuad quad : quads)
@@ -493,14 +490,14 @@ public class RenderUtils
     }
 
     public static void renderInsetQuad(Vec3i minPos, int width, int height, Direction side,
-                                       double inset, Color4f color, Vec3 cameraPos,
+                                       double inset, Color4f color, Vec3d cameraPos,
                                        BufferBuilder buffer)
     {
         renderInsetQuad(minPos.getX(), minPos.getY(), minPos.getZ(), width, height, side, inset, color, cameraPos, buffer);
     }
 
     public static void renderInsetQuad(long minPos, int width, int height, Direction side,
-                                       double inset, Color4f color, Vec3 cameraPos,
+                                       double inset, Color4f color, Vec3d cameraPos,
                                        BufferBuilder buffer)
     {
         int x = BlockPos.getX(minPos);
@@ -511,7 +508,7 @@ public class RenderUtils
     }
 
     public static void renderInsetQuad(int x, int y, int z, int width, int height, Direction side,
-                                       double inset, Color4f color, Vec3 cameraPos,
+                                       double inset, Color4f color, Vec3d cameraPos,
                                        BufferBuilder buffer)
     {
         float minX = (float) (x - cameraPos.x);
@@ -588,7 +585,7 @@ public class RenderUtils
         }
     }
 
-    public static void renderQuadLines(Collection<SideQuad> quads, Color4f color, double expand, Vec3 cameraPos,
+    public static void renderQuadLines(Collection<SideQuad> quads, Color4f color, double expand, Vec3d cameraPos,
 									   float lineWidth,
                                        BufferBuilder buffer)
     {
@@ -601,7 +598,7 @@ public class RenderUtils
     }
 
     public static void renderInsetQuadLines(Vec3i minPos, int width, int height, Direction side,
-                                            double inset, Color4f color, Vec3 cameraPos,
+                                            double inset, Color4f color, Vec3d cameraPos,
                                             float lineWidth,
                                             BufferBuilder buffer)
     {
@@ -609,7 +606,7 @@ public class RenderUtils
     }
 
     public static void renderInsetQuadLines(long minPos, int width, int height, Direction side,
-                                            double inset, Color4f color, Vec3 cameraPos,
+                                            double inset, Color4f color, Vec3d cameraPos,
                                             float lineWidth,
                                             BufferBuilder buffer)
 
@@ -622,7 +619,7 @@ public class RenderUtils
     }
 
     public static void renderInsetQuadLines(int x, int y, int z, int width, int height, Direction side,
-                                            double inset, Color4f color, Vec3 cameraPos,
+                                            double inset, Color4f color, Vec3d cameraPos,
                                             float lineWidth,
                                             BufferBuilder buffer)
     {
@@ -702,8 +699,8 @@ public class RenderUtils
                                               Direction side,
                                               double inset,
                                               Color4f color,
-                                              Vec3 cameraPos,
-											  float lineWidth,
+                                              Vec3d cameraPos,
+                                              float lineWidth,
                                               BufferBuilder buffer)
     {
         float minX = (float) (minPos.getX() - cameraPos.x);

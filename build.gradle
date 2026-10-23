@@ -6,6 +6,9 @@ plugins {
 }
 
 repositories {
+	maven { url = 'https://maven.su5ed.dev/releases'
+		content {includeGroupAndSubgroups("org.sinytra")}
+	}
 	mavenLocal()
 	maven { url = "https://masa.dy.fi/maven/sakura-ryoko"
 		content {includeGroupAndSubgroups("fi.dy.masa")}
@@ -30,7 +33,8 @@ dependencies {
 	implementation("team.cagayakegirls.mafglib:mafglib:${project.malilib_version}")
 	runtimeOnly("team.cagayakegirls.foxified:foxified-classtweaker:${project.foxified_classtweaker_version}")
 
-	include(implementation("me.fallenbreath:conditional-mixin-${loom.platform.get().id()}:${project.conditionalmixin_version}"))
+	// provided at runtime by mafglib (jar-in-jar there), not bundled here
+	compileOnly("me.fallenbreath:conditional-mixin-${loom.platform.get().id()}:${project.conditionalmixin_version}")
 
 //	runtimeOnly 'me.fallenbreath:mixin-auditor:0.2.0-u'
 }
