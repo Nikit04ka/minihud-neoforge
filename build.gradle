@@ -6,6 +6,9 @@ plugins {
 }
 
 repositories {
+	maven { url = 'https://maven.su5ed.dev/releases'
+		content {includeGroupAndSubgroups("org.sinytra")}
+	}
 	mavenLocal()
 	maven { url = "https://masa.dy.fi/maven/sakura-ryoko"
 		content {includeGroupAndSubgroups("fi.dy.masa")}
