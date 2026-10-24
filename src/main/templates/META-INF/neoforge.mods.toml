@@ -10,7 +10,7 @@ displayName="${mod_name}"
 displayURL="${mod_link}"
 logoFile="icon.png"
 credits="masa"
-authors="TexTrue, CagayakeGirls, Nikit04ka (26.2+ port)"
+authors="TexTrue, CagayakeGirls, sH1pu4Ka, ClaudeCode (26.2+ port)"
 description='''
 MiniHUD unofficial NeoForge port. Configurable "mini-F3" info lines, and various overlay renderers
 '''
@@ -21,7 +21,7 @@ version="${mod_version}"
 displayName="MiniHUD Stub"
 logoFile="assets/minihud/icon.png"
 credits="masa"
-authors="TexTrue, CagayakeGirls, Nikit04ka (26.2+ port)"
+authors="TexTrue, CagayakeGirls, sH1pu4Ka, ClaudeCode (26.2+ port)"
 description='''
 MiniHUD Stub.
 Configurable "mini-F3" info lines, and various overlay renderers
